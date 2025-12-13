@@ -1,474 +1,282 @@
 <script>
-    export let onLogout;
-    
-    let activeTab = 'dashboard';
-    let isSidebarOpen = true;
-
-    const menuItems = [
-        { id: 'dashboard', label: 'داشبورد', icon: '🏠', color: '#667eea' },
-        { id: 'courses', label: 'دوره‌های من', icon: '📚', color: '#3b82f6' },
-        { id: 'assignments', label: 'تکالیف', icon: '📝', color: '#10b981' },
-        { id: 'grades', label: 'نمرات', icon: '📊', color: '#f59e0b' },
-        { id: 'schedule', label: 'برنامه هفتگی', icon: '📅', color: '#ec4899' },
-        { id: 'resources', label: 'منابع درسی', icon: '🗂️', color: '#8b5cf6' },
-        { id: 'messages', label: 'پیام‌ها', icon: '💬', color: '#06b6d4' }
+    /* ================== SIDEBAR ================== */
+    let navItems = [
+        { id: 'group1', label: 'گروه ۱', icon: '📚', description: 'رمزگذاری حافظه ضعف' },
+        { id: 'group2', label: 'گروه ۲', icon: '🎓', description: 'عدم تمرکز پایدار' },
+        { id: 'group3', label: 'گروه ۳', icon: '👩‍🏫', description: 'بار شناختی بالا' },
+        { id: 'group4', label: 'گروه ۴', icon: '📝', description: 'خطا در تصمیم‌گیری' },
+        { id: 'group5', label: 'گروه ۵', icon: '🧠', description: 'پرسه‌زنی ذهنی' },
+        { id: 'group6', label: 'گروه ۶', icon: '💡', description: 'ویژه ریاضیات' },
+        { id: 'group7', label: 'گروه ۷', icon: '💡', description: 'ELISS' }
     ];
 
-    function toggleSidebar() {
-        isSidebarOpen = !isSidebarOpen;
-    }
+    let activeId = 'group1';
+    const setActive = (id) => (activeId = id);
+
+    
+    /* ================== CHAT ================== */
+let subject = "";
+let favoriteSubject = "";
+let streamingText = "";
+let loading = false;
+let socket = null;
+
+function sendMessage() {
+    if (!subject || !favoriteSubject || loading) return;
+
+    loading = true;
+    streamingText = "";
+
+    const prompt = `
+    گروه: ${activeId}
+    موضوع: ${subject}
+    مبحث مورد علاقه: ${favoriteSubject}
+    `.trim();
+
+    socket = new WebSocket("ws://localhost:8000/ws/chat/student");
+
+    socket.onopen = () => {
+        socket.send(prompt);
+    };
+
+    socket.onmessage = (event) => {
+        try {
+            // ✅ پارس کردن JSON
+            const message = JSON.parse(event.data);
+            
+            if (message.type === "token") {
+                // ✅ نمایش توکن
+                streamingText += message.content;
+            } 
+            else if (message.type === "end") {
+                // ✅ پایان استریم (بدون نمایش چیزی)
+                console.log("استریم تمام شد");
+            }
+            else if (message.type === "error") {
+                // ✅ نمایش خطا
+                streamingText = message.content;
+            }
+        } catch (error) {
+            // اگر JSON نبود (برای backward compatibility)
+            console.error("خطا در پارس JSON:", error);
+            streamingText += event.data;
+        }
+    };
+
+    socket.onerror = () => {
+        streamingText = "❌ خطا در اتصال با سرور";
+        loading = false;
+    };
+
+    socket.onclose = () => {
+        loading = false;
+        subject = "";
+        favoriteSubject = "";
+        socket = null;
+    };
+}
+
 </script>
 
-<div class="student-layout">
-    <!-- SIDEBAR -->
-    <aside class="sidebar" class:collapsed={!isSidebarOpen}>
-        <div class="sidebar-header">
-            <h2>{isSidebarOpen ? 'پنل دانش‌آموز' : '🎓'}</h2>
-            <button class="toggle-btn" on:click={toggleSidebar}>
-                {isSidebarOpen ? '◀' : '▶'}
-            </button>
-        </div>
+<!-- ================== LAYOUT ================== -->
+<div class="container" dir="rtl">
 
-        <nav class="sidebar-nav">
-            {#each menuItems as item}
-                <button
-                    class="nav-item"
-                    class:active={activeTab === item.id}
-                    style="--item-color: {item.color}"
-                    on:click={() => activeTab = item.id}
-                >
-                    <span class="icon">{item.icon}</span>
-                    {#if isSidebarOpen}
-                        <span class="label">{item.label}</span>
-                    {/if}
-                </button>
-            {/each}
-        </nav>
+    <!-- ===== Sidebar (Right) ===== -->
+    <aside class="sidebar">
+        <div class="logo">پنل دستیار</div>
 
-        <button class="logout-sidebar" on:click={onLogout}>
-            <span class="icon">🚪</span>
-            {#if isSidebarOpen}<span>خروج</span>{/if}
-        </button>
+        {#each navItems as item}
+            <div
+                class="item {item.id === activeId ? 'active' : ''}"
+                on:click={() => setActive(item.id)}
+            >
+                <div class="texts">
+                    <div class="label">{item.label}</div>
+                    <div class="description">{item.description}</div>
+                </div>
+                <div class="icon">{item.icon}</div>
+            </div>
+        {/each}
     </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-        <header class="top-bar">
-            <div class="breadcrumb">
-                <span class="current-page">{menuItems.find(m => m.id === activeTab)?.label}</span>
-            </div>
-            <div class="user-info">
-                <span class="welcome">خوش آمدید، دانش‌آموز</span>
-                <div class="avatar">🎓</div>
-            </div>
-        </header>
+    <!-- ===== Chat Area (Left) ===== -->
+    <main class="chatbox">
+        <h2>دستیار هوش مصنوعی دانش‌آموز</h2>
 
-        <div class="content-area">
-            {#if activeTab === 'dashboard'}
-                <div class="dashboard-grid">
-                    <div class="stat-card purple">
-                        <div class="stat-icon">📚</div>
-                        <div class="stat-details">
-                            <h3>۴</h3>
-                            <p>دوره‌های ثبت‌نام شده</p>
-                        </div>
-                    </div>
-                    <div class="stat-card blue">
-                        <div class="stat-icon">📝</div>
-                        <div class="stat-details">
-                            <h3>۶</h3>
-                            <p>تکلیف در انتظار</p>
-                        </div>
-                    </div>
-                    <div class="stat-card green">
-                        <div class="stat-icon">✅</div>
-                        <div class="stat-details">
-                            <h3>۲۸</h3>
-                            <p>تکلیف تکمیل‌شده</p>
-                        </div>
-                    </div>
-                    <div class="stat-card orange">
-                        <div class="stat-icon">📈</div>
-                        <div class="stat-details">
-                            <h3>۱۸.۵</h3>
-                            <p>میانگین نمرات</p>
-                        </div>
-                    </div>
-                </div>
+        <div class="inputs-row">
+            <div class="fancy-input">
+                <span class="input-icon">♡</span>
+                <input bind:value={subject} placeholder=" " />
+                <label class="fancy-label">موضوع</label>
+            </div>
 
-                <div class="section">
-                    <h2>تکالیف امروز</h2>
-                    <div class="assignment-list">
-                        <div class="assignment-item urgent">
-                            <div class="assignment-header">
-                                <h3>📐 تمرین هندسه</h3>
-                                <span class="badge red">فوری</span>
-                            </div>
-                            <p>مهلت: امروز ساعت ۲۳:۵۹</p>
-                            <div class="progress-bar">
-                                <div class="progress" style="width: 70%"></div>
-                            </div>
-                        </div>
-                        <div class="assignment-item">
-                            <div class="assignment-header">
-                                <h3>🔬 گزارش آزمایشگاه</h3>
-                                <span class="badge yellow">این هفته</span>
-                            </div>
-                            <p>مهلت: جمعه ساعت ۱۸:۰۰</p>
-                            <div class="progress-bar">
-                                <div class="progress" style="width: 30%"></div>
-                            </div>
-                        </div>
-                        <div class="assignment-item">
-                            <div class="assignment-header">
-                                <h3>📖 خلاصه فصل ۳</h3>
-                                <span class="badge green">هفته آینده</span>
-                            </div>
-                            <p>مهلت: شنبه ساعت ۱۲:۰۰</p>
-                            <div class="progress-bar">
-                                <div class="progress" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {:else}
-                <div class="placeholder">
-                    <div class="placeholder-icon">{menuItems.find(m => m.id === activeTab)?.icon}</div>
-                    <h2>بخش {menuItems.find(m => m.id === activeTab)?.label}</h2>
-                    <p>این بخش به زودی راه‌اندازی می‌شود...</p>
-                </div>
-            {/if}
+            <div class="fancy-input">
+                <span class="input-icon">★</span>
+                <input bind:value={favoriteSubject} placeholder=" " />
+                <label class="fancy-label">مبحث مورد علاقه</label>
+            </div>
         </div>
+
+        <button
+            class="btn"
+            disabled={loading}
+            on:click={sendMessage}
+        >
+            {loading ? "⏳ در حال پردازش..." : "🚀 ارسال اطلاعات"}
+        </button>
+
+        <textarea
+            class="output"
+            dir="rtl"
+            readonly
+            bind:value={streamingText}
+        />
     </main>
 </div>
 
 <style>
-    .student-layout {
-        display: flex;
-        min-height: 100vh;
-        background: #f5f7fa;
-        direction: rtl;
-        font-family: 'Vazirmatn', sans-serif;
-    }
+/* ================== LAYOUT ================== */
+.container {
+    display: flex;
+    height: 100vh;
+    font-family: "Vazirmatn", sans-serif;
+}
 
-    .sidebar {
-        width: 280px;
-        background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-        color: white;
-        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        flex-direction: column;
-        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-        position: relative;
-        z-index: 100;
-    }
+/* ================== SIDEBAR ================== */
+.sidebar {
+    width: 260px;
+    background: rgba(245,245,245,0.8);
+    backdrop-filter: blur(12px);
+    padding: 25px 18px;
+    border-left: 1px solid rgba(0,0,0,0.08);
+}
 
-    .sidebar.collapsed {
-        width: 80px;
-    }
+.logo {
+    font-size: 20px;
+    font-weight: bold;
+    padding: 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    text-align: center;
+    margin-bottom: 25px;
+}
 
-    .sidebar-header {
-        padding: 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
+.item {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 12px 16px;
+    margin: 8px 0;
+    border-radius: 14px;
+    cursor: pointer;
+    border: 1px solid rgba(200,200,200,0.3);
+    background: rgba(255,255,255,0.6);
+    transition: 0.3s ease;
+    direction: ltr;
+    position: relative;
+}
 
-    .sidebar-header h2 {
-        margin: 0;
-        font-size: 1.3rem;
-        font-weight: 700;
-    }
+.item:hover {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    transform: translateX(-4px);
+}
 
-    .toggle-btn {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: white;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        cursor: pointer;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+.item.active::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    width: 5px;
+    height: 100%;
+    background: #667eea;
+    border-radius: 5px;
+}
 
-    .toggle-btn:hover {
-        background: rgba(255, 255, 255, 0.3);
-        transform: scale(1.1);
-    }
+.icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 12px;
+    background: rgba(200,200,200,0.3);
+}
 
-    .sidebar-nav {
-        flex: 1;
-        padding: 1rem 0;
-        overflow-y: auto;
-    }
+.texts {
+    text-align: right;
+}
 
-    .nav-item {
-        width: 100%;
-        background: transparent;
-        border: none;
-        color: white;
-        padding: 1rem 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        cursor: pointer;
-        transition: all 0.3s;
-        border-right: 4px solid transparent;
-        font-family: inherit;
-        text-align: right;
-    }
+.label {
+    font-size: 14px;
+    font-weight: 600;
+}
 
-    .nav-item:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-right-color: white;
-    }
+.description {
+    font-size: 12px;
+    color: #666;
+}
 
-    .nav-item.active {
-        background: rgba(255, 255, 255, 0.15);
-        border-right-color: var(--item-color);
-        font-weight: 600;
-    }
+/* ================== CHAT ================== */
+.chatbox {
+    flex: 1;
+    padding: 2.5rem 3rem;
+    display: flex;
+    flex-direction: column;
+}
 
-    .nav-item .icon {
-        font-size: 1.5rem;
-        min-width: 30px;
-        text-align: center;
-    }
+h2 {
+    text-align: center;
+    margin-bottom: 2rem;
+}
 
-    .nav-item .label {
-        font-size: 1rem;
-        white-space: nowrap;
-    }
+.inputs-row {
+    display: flex;
+    gap: 1.2rem;
+    margin-bottom: 2rem;
+}
 
-    .logout-sidebar {
-        margin: 1rem;
-        padding: 1rem;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-        color: white;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        justify-content: center;
-        transition: all 0.3s;
-        font-family: inherit;
-    }
+.fancy-input {
+    position: relative;
+    flex: 1;
+    padding: 1.2rem;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.85);
+    border: 2px solid #e7e7e7;
+}
 
-    .logout-sidebar:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-    }
+.fancy-input input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+}
 
-    .main-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
+.btn {
+    width: 45%;
+    margin: 0 auto 1.4rem;
+    padding: 1rem;
+    border-radius: 16px;
+    border: none;
+    background: #4b32ff;
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+}
 
-    .top-bar {
-        background: white;
-        padding: 1rem 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    }
+.btn:disabled {
+    opacity: 0.6;
+}
 
-    .breadcrumb .current-page {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: #333;
-    }
-
-    .user-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .welcome {
-        color: #666;
-        font-size: 0.95rem;
-    }
-
-    .avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #10b981, #059669);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.3rem;
-    }
-
-    .content-area {
-        flex: 1;
-        padding: 2rem;
-        overflow-y: auto;
-    }
-
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .stat-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        transition: transform 0.3s, box-shadow 0.3s;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-    }
-
-    .stat-card.purple { border-right: 4px solid #667eea; }
-    .stat-card.blue { border-right: 4px solid #3b82f6; }
-    .stat-card.green { border-right: 4px solid #10b981; }
-    .stat-card.orange { border-right: 4px solid #f59e0b; }
-
-    .stat-icon {
-        font-size: 3rem;
-        opacity: 0.9;
-    }
-
-    .stat-details h3 {
-        margin: 0;
-        font-size: 2rem;
-        color: #333;
-    }
-
-    .stat-details p {
-        margin: 0.3rem 0 0;
-        color: #666;
-        font-size: 0.9rem;
-    }
-
-    .section {
-        background: white;
-        padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    }
-
-    .section h2 {
-        margin-top: 0;
-        color: #333;
-        border-bottom: 2px solid #10b981;
-        padding-bottom: 0.5rem;
-    }
-
-    .assignment-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .assignment-item {
-        padding: 1.5rem;
-        background: #f9fafb;
-        border-radius: 10px;
-        border-right: 4px solid #10b981;
-        transition: transform 0.3s, box-shadow 0.3s;
-    }
-
-    .assignment-item.urgent {
-        border-right-color: #ef4444;
-    }
-
-    .assignment-item:hover {
-        transform: translateX(-5px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    }
-
-    .assignment-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-    }
-
-    .assignment-header h3 {
-        margin: 0;
-        color: #333;
-        font-size: 1.1rem;
-    }
-
-    .badge {
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .badge.red {
-        background: #fee2e2;
-        color: #ef4444;
-    }
-
-    .badge.yellow {
-        background: #fef3c7;
-        color: #f59e0b;
-    }
-
-    .badge.green {
-        background: #d1fae5;
-        color: #10b981;
-    }
-
-    .assignment-item p {
-        color: #666;
-        margin: 0.5rem 0;
-        font-size: 0.9rem;
-    }
-
-    .progress-bar {
-        background: #e5e7eb;
-        height: 8px;
-        border-radius: 10px;
-        overflow: hidden;
-        margin-top: 0.8rem;
-    }
-
-    .progress {
-        background: linear-gradient(90deg, #10b981, #34d399);
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.5s ease;
-    }
-
-    .placeholder {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    }
-
-    .placeholder-icon {
-        font-size: 5rem;
-        margin-bottom: 1rem;
-    }
-
-    .placeholder h2 {
-        color: #333;
-        margin-bottom: 0.5rem;
-    }
-
+.output {
+    flex: 1;
+    border-radius: 16px;
+    padding: 1.2rem;
+    border: 2px solid #dedede;
+    resize: none;
+    line-height: 1.7;
+}
 </style>
-

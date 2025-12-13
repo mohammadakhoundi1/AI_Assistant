@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket
+from chat.websocket import chat_websocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -6,10 +7,10 @@ from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
 from typing import List
-
 from database import engine, get_db, Base
 from models import User
 import schemas
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -79,6 +80,10 @@ def get_current_admin_user(current_user: User = Depends(get_current_user)):
 @app.get("/")
 def read_root():
     return {"message": "Admin Panel API is running"}
+
+@app.websocket("/ws/chat/{role}")
+async def ws_chat(websocket: WebSocket, role: str):
+    await chat_websocket(websocket, role)
 
 @app.post("/auth/signup", response_model=schemas.UserResponse)
 def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
