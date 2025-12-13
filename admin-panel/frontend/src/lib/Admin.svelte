@@ -1,7 +1,7 @@
 <script>
     import { onMount } from 'svelte';
     import { api } from './api.js';
-    import { authStore } from '../stores/auth.js'; // Import your auth store
+    import { authStore } from '../stores/auth.js';
     import UserManagement from './UserManagement.svelte';
 
     export let onLogout = () => {};
@@ -25,14 +25,14 @@
 </script>
 
 {#if loading}
-    <div class="loading">Loading...</div>
+    <div class="loading">در حال بارگذاری...</div>
 {:else}
     <div class="admin-container">
         <header>
-            <h1>Admin Dashboard</h1>
+            <h1>پنل مدیریت</h1>
             <div class="user-info">
-                <span>Welcome, {user.full_name}</span>
-                <button on:click={onLogout} class="logout-btn">Logout</button>
+                <span>خوش آمدید، {user.full_name}</span>
+                <button on:click={onLogout} class="logout-btn">خروج</button>
             </div>
         </header>
 
@@ -49,11 +49,15 @@
         align-items: center;
         height: 100vh;
         font-size: 1.5rem;
+        direction: rtl;
+        font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
     }
 
     .admin-container {
         min-height: 100vh;
         background: #f5f7fa;
+        direction: rtl;
+        font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
     }
 
     header {
@@ -85,6 +89,8 @@
         border-radius: 5px;
         cursor: pointer;
         transition: all 0.3s;
+        font-family: inherit;
+        font-size: 0.95rem;
     }
 
     .logout-btn:hover {

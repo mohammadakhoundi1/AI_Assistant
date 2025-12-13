@@ -17,7 +17,7 @@
         error = '';
         
         if (formData.password !== formData.confirmPassword) {
-            error = 'Passwords do not match';
+            error = 'رمزهای عبور مطابقت ندارند';
             return;
         }
 
@@ -37,14 +37,14 @@
 
 <div class="auth-container">
     <div class="auth-card">
-        <h2>Sign Up</h2>
+        <h2>ثبت‌نام</h2>
         
         {#if success}
             <div class="success-message">
-                <p>Registration successful!</p>
-                <p>Your account is pending approval from an administrator.</p>
+                <p>✅ ثبت‌نام با موفقیت انجام شد!</p>
+                <p>حساب کاربری شما در انتظار تایید مدیر است.</p>
                 <button on:click={() => window.location.hash = '#/login'} class="btn-primary">
-                    Go to Login
+                    رفتن به صفحه ورود
                 </button>
             </div>
         {:else}
@@ -53,10 +53,8 @@
             {/if}
 
             <form on:submit|preventDefault={handleSignup}>
-                
-
                 <div class="form-group">
-                    <label for="email">Email</label>
+                    <label for="email">ایمیل</label>
                     <input 
                         id="email"
                         type="email" 
@@ -68,57 +66,57 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="full_name">Full Name</label>
+                    <label for="full_name">نام و نام خانوادگی</label>
                     <input 
                         id="full_name"
                         type="text" 
                         bind:value={formData.full_name}
-                        placeholder="Your full name"
+                        placeholder="نام و نام خانوادگی خود را وارد کنید"
                         required
                         disabled={loading}
                     />
                 </div>
 
                 <div class="form-group">
-                    <label for="role">Role</label>
+                    <label for="role">نقش</label>
                     <select id="role" bind:value={formData.role} disabled={loading}>
-                        <option value="student">Student</option>
-                        <option value="teacher">Teacher</option>
-                        <option value="admin">Admin</option>
+                        <option value="student">دانش‌آموز</option>
+                        <option value="teacher">معلم</option>
+                        <option value="admin">مدیر</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password">رمز عبور</label>
                     <input 
                         id="password"
                         type="password" 
                         bind:value={formData.password}
-                        placeholder="Enter password"
+                        placeholder="رمز عبور را وارد کنید"
                         required
                         disabled={loading}
                     />
                 </div>
 
                 <div class="form-group">
-                    <label for="confirmPassword">Confirm Password</label>
+                    <label for="confirmPassword">تکرار رمز عبور</label>
                     <input 
                         id="confirmPassword"
                         type="password" 
                         bind:value={formData.confirmPassword}
-                        placeholder="Confirm password"
+                        placeholder="رمز عبور را مجدداً وارد کنید"
                         required
                         disabled={loading}
                     />
                 </div>
 
                 <button type="submit" class="btn-primary" disabled={loading}>
-                    {loading ? 'Creating account...' : 'Sign Up'}
+                    {loading ? 'در حال ایجاد حساب...' : 'ثبت‌نام'}
                 </button>
             </form>
 
             <p class="auth-link">
-                Already have an account? <button on:click={() => window.location.hash = '#/login'}>Login</button>
+                قبلاً ثبت‌نام کرده‌اید؟ <button on:click={() => window.location.hash = '#/login'}>ورود</button>
             </p>
         {/if}
     </div>
@@ -132,6 +130,8 @@
         min-height: 100vh;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem 0;
+        direction: rtl;
+        font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
     }
 
     .auth-card {
@@ -147,6 +147,7 @@
         text-align: center;
         color: #333;
         margin-bottom: 1.5rem;
+        font-size: 1.75rem;
     }
 
     .form-group {
@@ -167,6 +168,8 @@
         border-radius: 5px;
         font-size: 1rem;
         transition: border-color 0.3s;
+        text-align: right;
+        font-family: inherit;
     }
 
     input:focus, select:focus {
@@ -177,6 +180,15 @@
     input:disabled, select:disabled {
         background-color: #f5f5f5;
         cursor: not-allowed;
+    }
+
+    input::placeholder {
+        text-align: right;
+        color: #aaa;
+    }
+
+    select {
+        cursor: pointer;
     }
 
     .btn-primary {
@@ -191,6 +203,7 @@
         cursor: pointer;
         transition: transform 0.2s;
         margin-top: 0.5rem;
+        font-family: inherit;
     }
 
     .btn-primary:hover:not(:disabled) {
@@ -210,6 +223,7 @@
         border-radius: 5px;
         margin-bottom: 1rem;
         text-align: center;
+        line-height: 1.6;
     }
 
     .success-message {
@@ -220,6 +234,8 @@
     .success-message p {
         color: #28a745;
         margin-bottom: 1rem;
+        line-height: 1.8;
+        font-size: 1.05rem;
     }
 
     .auth-link {
@@ -235,5 +251,6 @@
         cursor: pointer;
         font-weight: 600;
         text-decoration: underline;
+        font-family: inherit;
     }
 </style>

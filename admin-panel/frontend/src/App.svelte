@@ -5,10 +5,12 @@
     import Login from './lib/Login.svelte';
     import Signup from './lib/Signup.svelte';
     import Admin from './lib/Admin.svelte';
+    import Teacher from './lib/Teacher.svelte';
+    import Student from './lib/Student.svelte';
 
     let currentPage = 'login';
     let authState;
-    let isInitializing = true; // ← Add this flag
+    let isInitializing = true;
 
     authStore.subscribe(value => {
         authState = value;
@@ -62,11 +64,9 @@
             currentPage = hash === '/signup' ? 'signup' : 'login';
         }
 
-        // Mark initialization as complete
         isInitializing = false;
         console.log('✅ Initialization complete, currentPage:', currentPage);
 
-        // Now set up hash change listener
         window.addEventListener('hashchange', handleHashChange);
 
         return () => {
@@ -75,7 +75,6 @@
     });
 
     function handleHashChange() {
-        // Don't handle hash changes during initialization
         if (isInitializing) {
             console.log('⏳ Still initializing, ignoring hash change');
             return;
@@ -94,7 +93,6 @@
             } else if (hash === '/dashboard') {
                 currentPage = 'dashboard';
             } else {
-                // Default page based on role
                 if (authState.user?.role === 'admin') {
                     currentPage = 'admin';
                     window.location.hash = '/admin';
@@ -121,14 +119,24 @@
         currentPage = 'login';
         window.location.hash = '';
     }
+
+    // Helper function to get Persian role name
+    function getRoleName(role) {
+        const roleMap = {
+            'admin': 'مدیر',
+            'teacher': 'معلم',
+            'student': 'دانش‌آموز'
+        };
+        return roleMap[role] || role;
+    }
 </script>
 
 <main>
     {#if isInitializing}
-        <!-- LOADING SCREEN DURING INITIALIZATION -->
+        <!-- LOADING SCREEN -->
         <div class="loading-screen">
             <div class="spinner"></div>
-            <p>Loading...</p>
+            <p>در حال بارگذاری...</p>
         </div>
     {:else if !authState.isAuthenticated}
         <!-- UNAUTHENTICATED PAGES -->
@@ -142,59 +150,31 @@
         {#if currentPage === 'admin' && authState.user?.role === 'admin'}
             <Admin onLogout={handleLogout} />
         {:else if currentPage === 'teacher' && authState.user?.role === 'teacher'}
-            <!-- TODO: Create Teacher component -->
-            <div class="dashboard">
-                <nav class="navbar">
-                    <h1>Teacher Dashboard</h1>
-                    <div class="nav-right">
-                        <span>Welcome, {authState.user?.full_name || 'Teacher'}</span>
-                        <span class="role-badge">teacher</span>
-                        <button on:click={handleLogout} class="btn-logout">Logout</button>
-                    </div>
-                </nav>
-                <div class="content">
-                    <h2>Teacher Dashboard</h2>
-                    <p>Welcome to your teacher dashboard! 📚</p>
-                </div>
-            </div>
+            <Teacher onLogout={handleLogout} />
         {:else if currentPage === 'student' && authState.user?.role === 'student'}
-            <!-- TODO: Create Student component -->
-            <div class="dashboard">
-                <nav class="navbar">
-                    <h1>Student Dashboard</h1>
-                    <div class="nav-right">
-                        <span>Welcome, {authState.user?.full_name || 'Student'}</span>
-                        <span class="role-badge">student</span>
-                        <button on:click={handleLogout} class="btn-logout">Logout</button>
-                    </div>
-                </nav>
-                <div class="content">
-                    <h2>Student Dashboard</h2>
-                    <p>Welcome to your student dashboard! 🎓</p>
-                </div>
-            </div>
+            <Student onLogout={handleLogout} />
         {:else}
             <!-- DEFAULT DASHBOARD -->
             <div class="dashboard">
                 <nav class="navbar">
-                    <h1>User Dashboard</h1>
                     <div class="nav-right">
-                        <span>Welcome, {authState.user?.full_name || 'User'}</span>
-                        <span class="role-badge">{authState.user?.role || ''}</span>
-                        <button on:click={handleLogout} class="btn-logout">Logout</button>
+                        <span>خوش آمدید، {authState.user?.full_name || 'کاربر'}</span>
+                        <span class="role-badge">{getRoleName(authState.user?.role)}</span>
+                        <button on:click={handleLogout} class="btn-logout">خروج</button>
                     </div>
+                    <h1>داشبورد کاربری</h1>
                 </nav>
 
                 <div class="content">
                     {#if authState.user?.is_approved}
-                        <h2>Dashboard - {authState.user.role}</h2>
-                        <p>Your account is approved! 🎉</p>
-                        <p>Welcome to your personal dashboard.</p>
+                        <h2>داشبورد - {getRoleName(authState.user.role)}</h2>
+                        <p>حساب شما تأیید شده است! 🎉</p>
+                        <p>به داشبورد شخصی خود خوش آمدید.</p>
                     {:else}
                         <div class="pending-approval">
-                            <h2>⏳ Pending Approval</h2>
-                            <p>Your account is waiting for administrator approval.</p>
-                            <p>Please check back later or contact an administrator.</p>
+                            <h2>⏳ در انتظار تأیید</h2>
+                            <p>حساب کاربری شما در انتظار تأیید مدیر است.</p>
+                            <p>لطفاً بعداً بررسی کنید یا با مدیر سیستم تماس بگیرید.</p>
                         </div>
                     {/if}
                 </div>
@@ -206,7 +186,8 @@
 <style>
     :global(body) {
         margin: 0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Vazirmatn', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        direction: rtl;
     }
 
     main {
@@ -246,6 +227,7 @@
     .dashboard {
         min-height: 100vh;
         background: #f5f5f5;
+        direction: rtl;
     }
 
     .navbar {
@@ -261,12 +243,14 @@
     .navbar h1 {
         margin: 0;
         font-size: 1.5rem;
+        order: 2;
     }
 
     .nav-right {
         display: flex;
         align-items: center;
         gap: 1rem;
+        order: 1;
     }
 
     .role-badge {
@@ -274,28 +258,41 @@
         padding: 0.25rem 0.75rem;
         border-radius: 15px;
         font-size: 0.85rem;
-        text-transform: capitalize;
+        font-weight: 600;
     }
 
     .btn-logout {
         background: white;
         color: #667eea;
         border: none;
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 1.5rem;
         border-radius: 5px;
         cursor: pointer;
         font-weight: 600;
-        transition: transform 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s;
+        font-family: inherit;
     }
 
     .btn-logout:hover {
         transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .content {
         padding: 2rem;
         max-width: 1200px;
         margin: 0 auto;
+    }
+
+    .content h2 {
+        color: #333;
+        margin-bottom: 1rem;
+    }
+
+    .content p {
+        color: #666;
+        line-height: 1.8;
+        font-size: 1.1rem;
     }
 
     .pending-approval {
@@ -313,6 +310,7 @@
 
     .pending-approval p {
         color: #666;
-        line-height: 1.6;
+        line-height: 1.8;
+        margin: 0.5rem 0;
     }
 </style>

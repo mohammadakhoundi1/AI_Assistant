@@ -21,7 +21,7 @@
             
             // Step 3: Check if user is approved (from login response)
             if (!response.is_approved) {
-                error = 'Your account is pending approval by an administrator.';
+                error = 'حساب کاربری شما در انتظار تایید مدیر است.';
                 loading = false;
                 return;
             }
@@ -44,7 +44,7 @@
             
         } catch (err) {
             console.error('Login error:', err);
-            error = err.message || 'Login failed. Please check your credentials.';
+            error = err.message || 'ورود ناموفق بود. لطفاً اطلاعات ورود خود را بررسی کنید.';
         } finally {
             loading = false;
         }
@@ -53,7 +53,7 @@
 
 <div class="auth-container">
     <div class="auth-card">
-        <h2>Login</h2>
+        <h2>ورود به سیستم</h2>
         
         {#if error}
             <div class="error-message">{error}</div>
@@ -61,36 +61,36 @@
 
         <form on:submit|preventDefault={handleLogin}>
             <div class="form-group">
-                <label for="email">Email</label>
+                <label for="email">ایمیل</label>
                 <input 
                     id="email"
                     type="email" 
                     bind:value={email}
-                    placeholder="Enter your email"
+                    placeholder="ایمیل خود را وارد کنید"
                     required
                     disabled={loading}
                 />
             </div>
 
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password">رمز عبور</label>
                 <input 
                     id="password"
                     type="password" 
                     bind:value={password}
-                    placeholder="Enter password"
+                    placeholder="رمز عبور را وارد کنید"
                     required
                     disabled={loading}
                 />
             </div>
 
             <button type="submit" class="btn-primary" disabled={loading}>
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? 'در حال ورود...' : 'ورود'}
             </button>
         </form>
 
         <p class="auth-link">
-            Don't have an account? <button on:click={() => window.location.hash = '#/signup'}>Sign up</button>
+            حساب کاربری ندارید؟ <button on:click={() => window.location.hash = '#/signup'}>ثبت‌نام کنید</button>
         </p>
     </div>
 </div>
@@ -102,6 +102,8 @@
         align-items: center;
         min-height: 100vh;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        direction: rtl;
+        font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
     }
 
     .auth-card {
@@ -117,6 +119,7 @@
         text-align: center;
         color: #333;
         margin-bottom: 1.5rem;
+        font-size: 1.75rem;
     }
 
     .form-group {
@@ -137,6 +140,8 @@
         border-radius: 5px;
         font-size: 1rem;
         transition: border-color 0.3s;
+        text-align: right;
+        font-family: inherit;
     }
 
     input:focus {
@@ -147,6 +152,11 @@
     input:disabled {
         background-color: #f5f5f5;
         cursor: not-allowed;
+    }
+
+    input::placeholder {
+        text-align: right;
+        color: #aaa;
     }
 
     .btn-primary {
@@ -160,6 +170,7 @@
         font-weight: 600;
         cursor: pointer;
         transition: transform 0.2s;
+        font-family: inherit;
     }
 
     .btn-primary:hover:not(:disabled) {
@@ -179,6 +190,7 @@
         border-radius: 5px;
         margin-bottom: 1rem;
         text-align: center;
+        line-height: 1.6;
     }
 
     .auth-link {
@@ -194,5 +206,6 @@
         cursor: pointer;
         font-weight: 600;
         text-decoration: underline;
+        font-family: inherit;
     }
 </style>

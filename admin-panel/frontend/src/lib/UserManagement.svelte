@@ -35,7 +35,7 @@
             
             loading = false;
         } catch (err) {
-            error = 'Failed to load data: ' + err.message;
+            error = 'خطا در بارگذاری اطلاعات: ' + err.message;
             loading = false;
             console.error('Load error:', err);
         }
@@ -47,25 +47,25 @@
             await api.updateUser(userId, data);
             await loadData();
         } catch (err) {
-            alert('Update failed: ' + err.message);
+            alert('خطا در به‌روزرسانی: ' + err.message);
         }
     }
 
     async function deleteUser(userId) {
-        if (!confirm('Are you sure you want to delete this user?')) return;
+        if (!confirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
         
         try {
             await api.deleteUser(userId);
             await loadData();
         } catch (err) {
-            alert('Delete failed: ' + err.message);
+            alert('خطا در حذف: ' + err.message);
         }
     }
 </script>
 
 <div class="user-management">
     {#if loading}
-        <div class="loading">Loading users...</div>
+        <div class="loading">در حال بارگذاری کاربران...</div>
     {:else if error}
         <div class="error">{error}</div>
     {:else}
@@ -73,39 +73,39 @@
         <div class="stats-grid">
             <div class="stat-card purple">
                 <div class="stat-value">{stats.total}</div>
-                <div class="stat-label">Total Users</div>
+                <div class="stat-label">کل کاربران</div>
             </div>
             <div class="stat-card blue">
                 <div class="stat-value">{stats.admins}</div>
-                <div class="stat-label">Admins</div>
+                <div class="stat-label">مدیران</div>
             </div>
             <div class="stat-card green">
                 <div class="stat-value">{stats.teachers}</div>
-                <div class="stat-label">Teachers</div>
+                <div class="stat-label">معلمان</div>
             </div>
             <div class="stat-card orange">
                 <div class="stat-value">{stats.students}</div>
-                <div class="stat-label">Students</div>
+                <div class="stat-label">دانش‌آموزان</div>
             </div>
             <div class="stat-card red">
                 <div class="stat-value">{stats.pending}</div>
-                <div class="stat-label">Pending Approval</div>
+                <div class="stat-label">در انتظار تأیید</div>
             </div>
         </div>
 
         <!-- Users Table -->
         <div class="table-container">
-            <h2>User Management</h2>
+            <h2>مدیریت کاربران</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Approved</th>
-                        <th>Created</th>
-                        <th>Actions</th>
+                        <th>شناسه</th>
+                        <th>نام</th>
+                        <th>ایمیل</th>
+                        <th>نقش</th>
+                        <th>تأیید شده</th>
+                        <th>تاریخ ایجاد</th>
+                        <th>عملیات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -120,9 +120,9 @@
                                     on:change={(e) => updateUser(user.id, 'role', e.target.value)}
                                     class="role-select {user.role}"
                                 >
-                                    <option value="student">Student</option>
-                                    <option value="teacher">Teacher</option>
-                                    <option value="admin">Admin</option>
+                                    <option value="student">دانش‌آموز</option>
+                                    <option value="teacher">معلم</option>
+                                    <option value="admin">مدیر</option>
                                 </select>
                             </td>
                             <td>
@@ -135,13 +135,13 @@
                                     <span class="slider"></span>
                                 </label>
                             </td>
-                            <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                            <td>{new Date(user.created_at).toLocaleDateString('fa-IR')}</td>
                             <td>
                                 <button
                                     class="delete-btn"
                                     on:click={() => deleteUser(user.id)}
                                 >
-                                    Delete
+                                    حذف
                                 </button>
                             </td>
                         </tr>
@@ -157,6 +157,8 @@
         padding: 2rem;
         max-width: 1400px;
         margin: 0 auto;
+        direction: rtl;
+        font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
     }
 
     .loading, .error {
@@ -183,7 +185,7 @@
         border-radius: 10px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         text-align: center;
-        border-left: 4px solid;
+        border-right: 4px solid;
         transition: transform 0.3s, box-shadow 0.3s;
     }
 
@@ -236,13 +238,14 @@
 
     th {
         padding: 1rem;
-        text-align: left;
+        text-align: right;
         font-weight: 600;
     }
 
     td {
         padding: 1rem;
         border-bottom: 1px solid #eee;
+        text-align: right;
     }
 
     tbody tr:hover {
@@ -257,6 +260,8 @@
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s;
+        font-family: inherit;
+        text-align: right;
     }
 
     .role-select.admin {
@@ -305,7 +310,7 @@
         content: "";
         height: 18px;
         width: 18px;
-        left: 3px;
+        right: 3px;
         bottom: 3px;
         background-color: white;
         transition: 0.4s;
@@ -317,7 +322,7 @@
     }
 
     input:checked + .slider:before {
-        transform: translateX(26px);
+        transform: translateX(-26px);
     }
 
     /* Delete Button */
@@ -329,6 +334,7 @@
         border-radius: 5px;
         cursor: pointer;
         transition: background 0.3s;
+        font-family: inherit;
     }
 
     .delete-btn:hover {
