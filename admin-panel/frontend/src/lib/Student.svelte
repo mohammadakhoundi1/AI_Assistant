@@ -321,7 +321,7 @@
                 <!-- Input های معمولی -->
                 <div class="fancy-inputs-container">
                     <div class="fancy-input">
-                        
+                        <span class="input-icon">♡</span>
                         <input 
                             bind:value={subject} 
                             placeholder=" " 

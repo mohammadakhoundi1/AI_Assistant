@@ -69,4 +69,22 @@ export const api = {
     }),
 
     getAdminStats: () => apiRequest('/admin/stats'),
+
+    // ✨ LLM Settings Methods (NEW)
+    getLLMSettings: () => apiRequest('/admin/llm-settings', {
+        method: 'GET',
+    }),
+
+    updateLLMSettings: (data) => apiRequest('/admin/llm-settings', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    }),
+
+    fetchModels: (baseUrl, apiKey) => apiRequest('/admin/llm-settings/models', {
+        method: 'POST',
+        body: JSON.stringify({
+            base_url: baseUrl,
+            api_key: apiKey,
+        }),
+    }),
 };

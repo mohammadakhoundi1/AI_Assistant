@@ -2,287 +2,323 @@
     import { onMount } from 'svelte';
     import { api } from './api.js';
 
-    let loading = true;
-    let saving = false;
-    let fetchingModels = false;
+    // ==================== STATE MANAGEMENT ====================
+    let state = {
+        loading: true,
+        saving: false,
+        fetchingModels: false
+    };
+
     let settings = {
         api_key: '',
         base_url: 'https://api.anthropic.com',
         model_name: 'claude-sonnet-4.5'
     };
-    let originalApiKey = '';
-    let message = { text: '', type: '' };
-    let availableModels = [];
-    let useCustomModel = false;
-    let customModelName = '';
 
-    onMount(async () => {
+    let originalApiKey = '';
+    let availableModels = [];
+    let modelInputMode = 'select'; // 'select' or 'custom'
+    let customModelName = '';
+    
+    let notification = {
+        visible: false,
+        message: '',
+        type: '' // 'success' or 'error'
+    };
+
+    // ==================== COMPUTED VALUES ====================
+    $: canFetchModels = settings.base_url.trim() && getCurrentApiKey().trim();
+    $: hasModels = availableModels.length > 0;
+    $: finalModelName = modelInputMode === 'custom' ? customModelName : settings.model_name;
+    $: canSave = getCurrentApiKey().trim() && settings.base_url.trim() && finalModelName.trim();
+
+    // ==================== HELPER FUNCTIONS ====================
+    function getCurrentApiKey() {
+        return settings.api_key === originalApiKey ? originalApiKey : settings.api_key;
+    }
+
+    function showNotification(message, type = 'success') {
+        notification = { visible: true, message, type };
+        setTimeout(() => {
+            notification.visible = false;
+        }, 4000);
+    }
+
+    function validateSettings() {
+        if (!getCurrentApiKey().trim()) {
+            throw new Error('لطفاً API Key را وارد کنید');
+        }
+        if (!settings.base_url.trim()) {
+            throw new Error('لطفاً Base URL را وارد کنید');
+        }
+        if (!finalModelName.trim()) {
+            throw new Error('لطفاً نام مدل را وارد کنید');
+        }
+    }
+
+    // ==================== API CALLS ====================
+    async function loadSettings() {
         try {
+            state.loading = true;
             const loadedSettings = await api.getLLMSettings();
             settings = { ...loadedSettings };
             originalApiKey = loadedSettings.api_key;
-            loading = false;
         } catch (error) {
-            console.error('❌ Failed to load LLM settings:', error);
-            message = { text: 'خطا در بارگذاری تنظیمات', type: 'error' };
-            loading = false;
+            console.error('❌ Failed to load settings:', error);
+            showNotification('خطا در بارگذاری تنظیمات', 'error');
+        } finally {
+            state.loading = false;
         }
-    });
+    }
 
     async function fetchModels() {
-        const apiKeyToUse = settings.api_key === originalApiKey 
-            ? originalApiKey 
-            : settings.api_key;
-
-        if (!settings.base_url.trim()) {
-            message = { text: 'لطفاً ابتدا Base URL را وارد کنید', type: 'error' };
+        if (!canFetchModels) {
+            showNotification('لطفاً ابتدا Base URL و API Key را وارد کنید', 'error');
             return;
         }
-
-        if (!apiKeyToUse.trim()) {
-            message = { text: 'لطفاً ابتدا API Key را وارد کنید', type: 'error' };
-            return;
-        }
-
-        fetchingModels = true;
-        message = { text: '', type: '' };
 
         try {
-            const response = await api.fetchModels(settings.base_url, apiKeyToUse);
+            state.fetchingModels = true;
+            const response = await api.fetchModels(settings.base_url, getCurrentApiKey());
             availableModels = response.models || [];
             
             if (availableModels.length === 0) {
-                message = { text: '⚠️ هیچ مدلی یافت نشد', type: 'error' };
+                showNotification('⚠️ هیچ مدلی یافت نشد', 'error');
             } else {
-                message = { text: `✅ ${availableModels.length} مدل یافت شد`, type: 'success' };
+                showNotification(`✅ ${availableModels.length} مدل یافت شد`, 'success');
+                // اگر مدلی انتخاب نشده، اولین مدل را انتخاب کن
+                if (!settings.model_name && availableModels.length > 0) {
+                    settings.model_name = availableModels[0].model_id;
+                }
             }
         } catch (error) {
             console.error('❌ Failed to fetch models:', error);
-            message = { text: 'خطا در دریافت لیست مدل‌ها. لطفاً Base URL و API Key را بررسی کنید.', type: 'error' };
+            showNotification('خطا در دریافت لیست مدل‌ها. Base URL و API Key را بررسی کنید.', 'error');
             availableModels = [];
         } finally {
-            fetchingModels = false;
+            state.fetchingModels = false;
         }
     }
 
-    async function handleSave() {
-        const finalModelName = useCustomModel ? customModelName : settings.model_name;
-        const apiKeyToSave = settings.api_key === originalApiKey 
-            ? originalApiKey 
-            : settings.api_key;
-
-        if (!apiKeyToSave.trim()) {
-            message = { text: 'لطفاً API Key را وارد کنید', type: 'error' };
-            return;
-        }
-
-        if (!settings.base_url.trim()) {
-            message = { text: 'لطفاً Base URL را وارد کنید', type: 'error' };
-            return;
-        }
-
-        if (!finalModelName.trim()) {
-            message = { text: 'لطفاً نام مدل را وارد کنید', type: 'error' };
-            return;
-        }
-
-        saving = true;
-        message = { text: '', type: '' };
-
+    async function saveSettings() {
         try {
+            validateSettings();
+            state.saving = true;
+
             await api.updateLLMSettings({
-                api_key: apiKeyToSave,
+                api_key: getCurrentApiKey(),
                 base_url: settings.base_url,
                 model_name: finalModelName
             });
-            message = { text: '✅ تنظیمات با موفقیت ذخیره شد', type: 'success' };
-            originalApiKey = apiKeyToSave;
+
+            originalApiKey = getCurrentApiKey();
+            settings.model_name = finalModelName; // به‌روزرسانی مدل در state
+            showNotification('✅ تنظیمات با موفقیت ذخیره شد', 'success');
         } catch (error) {
             console.error('❌ Failed to save settings:', error);
-            message = { text: 'خطا در ذخیره‌سازی تنظیمات', type: 'error' };
+            showNotification(error.message || 'خطا در ذخیره‌سازی تنظیمات', 'error');
         } finally {
-            saving = false;
+            state.saving = false;
         }
     }
+
+    // ==================== EVENT HANDLERS ====================
+    function handleModeChange(mode) {
+        modelInputMode = mode;
+        if (mode === 'select' && !hasModels) {
+            showNotification('ابتدا مدل‌ها را بارگذاری کنید', 'error');
+        }
+    }
+
+    // ==================== LIFECYCLE ====================
+    onMount(loadSettings);
 </script>
 
-{#if loading}
-    <div class="loading-container">
-        <div class="spinner"></div>
-        <p>در حال بارگذاری تنظیمات...</p>
-    </div>
-{:else}
-    <div class="llm-settings">
-        <div class="settings-header">
-            <h2>⚙️ تنظیمات سرویس هوش مصنوعی (LLM)</h2>
-            <p class="subtitle">پیکربندی API و انتخاب مدل برای چت</p>
+<!-- ==================== TEMPLATE ==================== -->
+<div class="container">
+    {#if state.loading}
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>در حال بارگذاری تنظیمات...</p>
         </div>
+    {:else}
+        <div class="settings-panel">
+            <!-- Header -->
+            <header class="panel-header">
+                <h2>⚙️ تنظیمات سرویس هوش مصنوعی (LLM)</h2>
+                <p class="subtitle">پیکربندی API و انتخاب مدل برای چت</p>
+            </header>
 
-        {#if message.text}
-            <div class="message {message.type}">
-                {message.text}
-            </div>
-        {/if}
+            <!-- Notification -->
+            {#if notification.visible}
+                <div class="notification {notification.type}" role="alert">
+                    {notification.message}
+                </div>
+            {/if}
 
-        <form on:submit|preventDefault={handleSave}>
-            <div class="form-group">
-                <label for="api-key">
-                    🔑 API Key
-                    <span class="required">*</span>
-                </label>
-                <input
-                    id="api-key"
-                    type="password"
-                    bind:value={settings.api_key}
-                    placeholder="sk-ant-xxxxx یا OpenRouter Key"
-                    required
-                />
-                <small class="help-text">
-                    کلید API برای احراز هویت با سرویس LLM
-                </small>
-            </div>
-
-            <div class="form-group">
-                <label for="base-url">
-                    🌐 Base URL
-                    <span class="required">*</span>
-                </label>
-                <div class="input-with-button">
+            <!-- Form -->
+            <form on:submit|preventDefault={saveSettings} class="settings-form">
+                <!-- API Key -->
+                <div class="field">
+                    <label for="api-key" class="field-label">
+                        🔑 API Key
+                        <span class="required">*</span>
+                    </label>
                     <input
-                        id="base-url"
-                        type="url"
-                        bind:value={settings.base_url}
-                        placeholder="https://api.anthropic.com"
+                        id="api-key"
+                        type="password"
+                        bind:value={settings.api_key}
+                        placeholder="sk-ant-xxxxx یا OpenRouter Key"
+                        class="field-input"
                         required
                     />
-                    <button
-                        type="button"
-                        class="fetch-models-btn"
-                        on:click={fetchModels}
-                        disabled={fetchingModels}
-                    >
-                        {#if fetchingModels}
-                            <span class="spinner-small"></span>
-                        {:else}
-                            🔄
-                        {/if}
-                        بارگذاری مدل‌ها
-                    </button>
+                    <small class="field-hint">
+                        کلید API برای احراز هویت با سرویس LLM
+                    </small>
                 </div>
-                <small class="help-text">
-                    آدرس پایه API (مثلاً: https://openrouter.ai/api/v1)
-                </small>
-            </div>
 
-            <div class="form-group">
-                <label for="model-name">
-                    🤖 Model Name
-                    <span class="required">*</span>
-                </label>
-                
-                <div class="model-selector">
-                    <label class="radio-option">
+                <!-- Base URL + Fetch Button -->
+                <div class="field">
+                    <label for="base-url" class="field-label">
+                        🌐 Base URL
+                        <span class="required">*</span>
+                    </label>
+                    <div class="field-group">
                         <input
-                            type="radio"
-                            bind:group={useCustomModel}
-                            value={false}
+                            id="base-url"
+                            type="url"
+                            bind:value={settings.base_url}
+                            placeholder="https://api.anthropic.com"
+                            class="field-input"
+                            required
                         />
-                        <span>انتخاب از لیست</span>
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            on:click={fetchModels}
+                            disabled={state.fetchingModels || !canFetchModels}
+                        >
+                            {#if state.fetchingModels}
+                                <span class="spinner-sm"></span>
+                            {:else}
+                                🔄
+                            {/if}
+                            بارگذاری مدل‌ها
+                        </button>
+                    </div>
+                    <small class="field-hint">
+                        آدرس پایه API (مثلاً: https://openrouter.ai/api/v1)
+                    </small>
+                </div>
+
+                <!-- Model Selection Mode -->
+                <div class="field">
+                    <label class="field-label">
+                        🤖 Model Name
+                        <span class="required">*</span>
                     </label>
                     
-                    <label class="radio-option">
-                        <input
-                            type="radio"
-                            bind:group={useCustomModel}
-                            value={true}
-                        />
-                        <span>وارد کردن دستی</span>
-                    </label>
+                    <div class="mode-selector">
+                        <label class="mode-option">
+                            <input
+                                type="radio"
+                                name="model-mode"
+                                checked={modelInputMode === 'select'}
+                                on:change={() => handleModeChange('select')}
+                            />
+                            <span>انتخاب از لیست</span>
+                        </label>
+                        
+                        <label class="mode-option">
+                            <input
+                                type="radio"
+                                name="model-mode"
+                                checked={modelInputMode === 'custom'}
+                                on:change={() => handleModeChange('custom')}
+                            />
+                            <span>وارد کردن دستی</span>
+                        </label>
+                    </div>
+
+                    <!-- Model Input Based on Mode -->
+                    <div class="model-input-wrapper">
+                        {#if modelInputMode === 'select'}
+                            <select
+                                bind:value={settings.model_name}
+                                disabled={!hasModels}
+                                class="field-input"
+                                required
+                            >
+                                {#if !hasModels}
+                                    <option value="">ابتدا مدل‌ها را بارگذاری کنید</option>
+                                {:else}
+                                    <option value="">-- انتخاب مدل --</option>
+                                    {#each availableModels as model (model.model_id)}
+                                        <option value={model.model_id}>
+                                            {model.model_name}
+                                        </option>
+                                    {/each}
+                                {/if}
+                            </select>
+                        {:else}
+                            <input
+                                type="text"
+                                bind:value={customModelName}
+                                placeholder="claude-sonnet-4.5"
+                                class="field-input"
+                                required
+                            />
+                        {/if}
+                    </div>
+                    
+                    <small class="field-hint">
+                        نام مدل مورد استفاده برای تولید پاسخ‌ها
+                    </small>
                 </div>
 
-                {#if !useCustomModel}
-                    <select
-                        id="model-name"
-                        bind:value={settings.model_name}
-                        disabled={availableModels.length === 0}
-                        required
+                <!-- Submit Button -->
+                <div class="form-actions">
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                        disabled={state.saving || !canSave}
                     >
-                        {#if availableModels.length === 0}
-                            <option value="">ابتدا مدل‌ها را بارگذاری کنید</option>
+                        {#if state.saving}
+                            <span class="spinner-sm"></span>
+                            در حال ذخیره...
                         {:else}
-                            {#each availableModels as model}
-                                <option value={model.id}>
-                                    {model.name}
-                                </option>
-                            {/each}
+                            💾 ذخیره تنظیمات
                         {/if}
-                    </select>
-                {:else}
-                    <input
-                        type="text"
-                        bind:value={customModelName}
-                        placeholder="claude-sonnet-4.5"
-                        required
-                    />
-                {/if}
-                
-                <small class="help-text">
-                    نام مدل مورد استفاده برای تولید پاسخ‌ها
-                </small>
-            </div>
+                    </button>
+                </div>
+            </form>
 
-            <div class="form-actions">
-                <button
-                    type="submit"
-                    class="save-btn"
-                    disabled={saving}
-                >
-                    {#if saving}
-                        <span class="spinner-small"></span>
-                        در حال ذخیره...
-                    {:else}
-                        💾 ذخیره تنظیمات
-                    {/if}
-                </button>
-            </div>
-        </form>
-
-        <div class="info-box">
-            <h3>📝 راهنما</h3>
-            <ul>
-                <li>برای استفاده از Anthropic: Base URL را به <code>https://api.anthropic.com</code> تنظیم کنید</li>
-                <li>برای استفاده از OpenRouter: Base URL را به <code>https://openrouter.ai/api/v1</code> تنظیم کنید</li>
-                <li>پس از وارد کردن Base URL و API Key، دکمه "🔄 بارگذاری مدل‌ها" را بزنید</li>
-                <li>می‌توانید مدل را از لیست انتخاب کنید یا به صورت دستی وارد نمایید</li>
-            </ul>
+            <!-- Help Box -->
+            <aside class="help-box">
+                <h3>📝 راهنما</h3>
+                <ul>
+                    <li>برای استفاده از Anthropic: <code>https://api.anthropic.com</code></li>
+                    <li>برای استفاده از OpenRouter: <code>https://openrouter.ai/api/v1</code></li>
+                    <li>پس از وارد کردن اطلاعات، دکمه "🔄 بارگذاری مدل‌ها" را بزنید</li>
+                    <li>می‌توانید مدل را از لیست انتخاب کنید یا دستی وارد کنید</li>
+                </ul>
+            </aside>
         </div>
-    </div>
-{/if}
+    {/if}
+</div>
 
+<!-- ==================== STYLES ==================== -->
 <style>
-    .llm-settings {
+    .container {
         max-width: 800px;
         margin: 0 auto;
-        padding: 2rem;
+        padding: 2rem 1rem;
         direction: rtl;
+        min-height: 100vh;
     }
 
-    .settings-header {
-        margin-bottom: 2rem;
-        text-align: center;
-    }
-
-    .settings-header h2 {
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-    }
-
-    .subtitle {
-        color: #7f8c8d;
-        font-size: 0.95rem;
-    }
-
-    .loading-container {
+    /* ===== Loading State ===== */
+    .loading-state {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -300,221 +336,279 @@
         animation: spin 1s linear infinite;
     }
 
-    .spinner-small {
+    .spinner-sm {
         display: inline-block;
         width: 16px;
         height: 16px;
-        border: 2px solid #f3f3f3;
-        border-top: 2px solid currentColor;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
         border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-left: 0.5rem;
+        animation: spin 0.6s linear infinite;
     }
 
     @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        to { transform: rotate(360deg); }
     }
 
-    .message {
+    /* ===== Panel ===== */
+    .settings-panel {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .panel-header {
+        padding: 2rem;
+        text-align: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .panel-header h2 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.75rem;
+    }
+
+    .subtitle {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+
+    /* ===== Notification ===== */
+    .notification {
+        margin: 1.5rem;
         padding: 1rem;
         border-radius: 8px;
-        margin-bottom: 1.5rem;
         text-align: center;
+        animation: slideIn 0.3s ease-out;
     }
 
-    .message.success {
-        background-color: #d4edda;
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    }
+
+    .notification.success {
+        background: #d4edda;
         color: #155724;
         border: 1px solid #c3e6cb;
     }
 
-    .message.error {
-        background-color: #f8d7da;
+    .notification.error {
+        background: #f8d7da;
         color: #721c24;
         border: 1px solid #f5c6cb;
     }
 
-    form {
-        background: white;
+    /* ===== Form ===== */
+    .settings-form {
         padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .form-group {
-        margin-bottom: 1.5rem;
+    .field {
+        margin-bottom: 1.75rem;
     }
 
-    label {
+    .field-label {
         display: block;
         font-weight: 600;
         color: #2c3e50;
         margin-bottom: 0.5rem;
+        font-size: 0.95rem;
     }
 
     .required {
         color: #e74c3c;
+        margin-right: 0.25rem;
     }
 
-    input[type="text"],
-    input[type="url"],
-    input[type="password"],
-    select {
+    .field-input {
         width: 100%;
-        padding: 0.75rem;
-        border: 2px solid #e0e0e0;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e1e8ed;
         border-radius: 8px;
         font-size: 1rem;
-        transition: border-color 0.3s;
+        transition: all 0.2s;
+        box-sizing: border-box;
     }
 
-    input:focus,
-    select:focus {
+    .field-input:focus {
         outline: none;
-        border-color: #3498db;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    .input-with-button {
+    .field-input:disabled {
+        background: #f8f9fa;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .field-group {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.75rem;
+        align-items: stretch;
     }
 
-    .input-with-button input {
+    .field-group .field-input {
         flex: 1;
     }
 
-    .fetch-models-btn {
-        padding: 0.75rem 1rem;
-        background-color: #2ecc71;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: background-color 0.3s;
+    .field-hint {
+        display: block;
+        margin-top: 0.5rem;
+        color: #6c757d;
+        font-size: 0.85rem;
     }
 
-    .fetch-models-btn:hover:not(:disabled) {
-        background-color: #27ae60;
-    }
-
-    .fetch-models-btn:disabled {
-        background-color: #95a5a6;
-        cursor: not-allowed;
-    }
-
-    .model-selector {
+    /* ===== Mode Selector ===== */
+    .mode-selector {
         display: flex;
         gap: 1.5rem;
         margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 8px;
     }
 
-    .radio-option {
+    .mode-option {
         display: flex;
         align-items: center;
         gap: 0.5rem;
         cursor: pointer;
         font-weight: normal;
+        color: #495057;
+        transition: color 0.2s;
     }
 
-    .radio-option input[type="radio"] {
-        width: auto;
+    .mode-option:hover {
+        color: #667eea;
+    }
+
+    .mode-option input[type="radio"] {
         cursor: pointer;
+        width: auto;
     }
 
-    .help-text {
-        display: block;
-        color: #7f8c8d;
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
+    .model-input-wrapper {
+        margin-top: 0.5rem;
+        min-height: 48px;
     }
 
-    .form-actions {
-        margin-top: 2rem;
-        display: flex;
-        justify-content: center;
-    }
-
-    .save-btn {
-        padding: 0.875rem 2rem;
-        background-color: #3498db;
-        color: white;
+    /* ===== Buttons ===== */
+    .btn {
+        padding: 0.75rem 1.5rem;
         border: none;
         border-radius: 8px;
         font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.3s;
-        display: flex;
+        transition: all 0.2s;
+        display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+        justify-content: center;
+        white-space: nowrap;
     }
 
-    .save-btn:hover:not(:disabled) {
-        background-color: #2980b9;
-    }
-
-    .save-btn:disabled {
-        background-color: #95a5a6;
+    .btn:disabled {
+        opacity: 0.5;
         cursor: not-allowed;
     }
 
-    .info-box {
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #2ecc71;
+        color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: #27ae60;
+    }
+
+    .form-actions {
         margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e1e8ed;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+
+    /* ===== Help Box ===== */
+    .help-box {
+        margin: 1.5rem;
         padding: 1.5rem;
-        background-color: #f8f9fa;
+        background: #f8f9fa;
         border-radius: 8px;
-        border-right: 4px solid #3498db;
+        border-right: 4px solid #667eea;
     }
 
-    .info-box h3 {
+    .help-box h3 {
+        margin: 0 0 1rem 0;
         color: #2c3e50;
-        margin-bottom: 1rem;
+        font-size: 1.1rem;
     }
 
-    .info-box ul {
+    .help-box ul {
         margin: 0;
         padding-right: 1.5rem;
     }
 
-    .info-box li {
-        margin-bottom: 0.5rem;
-        color: #555;
+    .help-box li {
+        margin-bottom: 0.75rem;
+        color: #495057;
         line-height: 1.6;
     }
 
-    .info-box code {
-        background-color: #e8e8e8;
-        padding: 0.2rem 0.4rem;
+    .help-box code {
+        background: white;
+        padding: 0.25rem 0.5rem;
         border-radius: 4px;
         font-family: 'Courier New', monospace;
-        font-size: 0.9rem;
+        font-size: 0.875rem;
+        color: #667eea;
+        border: 1px solid #e1e8ed;
     }
 
+    /* ===== Responsive ===== */
     @media (max-width: 768px) {
-        .llm-settings {
-            padding: 1rem;
+        .container {
+            padding: 1rem 0.5rem;
         }
 
-        form {
+        .settings-form {
             padding: 1.5rem;
         }
 
-        .input-with-button {
+        .panel-header {
+            padding: 1.5rem;
+        }
+
+        .panel-header h2 {
+            font-size: 1.5rem;
+        }
+
+        .field-group {
             flex-direction: column;
         }
 
-        .fetch-models-btn {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .model-selector {
+        .mode-selector {
             flex-direction: column;
             gap: 0.75rem;
         }

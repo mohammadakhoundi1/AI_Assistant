@@ -14,3 +14,12 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+class LLMSettings(Base):
+    __tablename__ = "llm_settings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    api_key = Column(String, nullable=False)
+    base_url = Column(String, nullable=False)
+    model_name = Column(String, nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

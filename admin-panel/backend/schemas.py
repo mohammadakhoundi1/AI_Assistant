@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr,ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -41,3 +41,28 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class LLMSettingsUpdate(BaseModel):
+    api_key: str
+    base_url: str
+    model_name: str
+    
+    model_config = ConfigDict(protected_namespaces=())
+
+class ModelsFetchRequest(BaseModel):
+    base_url: str
+    api_key: str
+    
+    model_config = ConfigDict(protected_namespaces=())
+
+class ModelInfo(BaseModel):
+    model_id: str
+    model_name: str
+    
+    model_config = ConfigDict(protected_namespaces=())
+
+class ModelsListResponse(BaseModel):
+    models: list[ModelInfo]
+    
+    model_config = ConfigDict(protected_namespaces=())

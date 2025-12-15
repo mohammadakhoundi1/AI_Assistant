@@ -1,33 +1,36 @@
-import os
 import httpx
 import json
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
-print("OPENROUTER_API_KEY =",OPENROUTER_API_KEY)
 
 
-HEADERS = {
-    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-    "Content-Type": "application/json",
-    "Accept": "text/event-stream",
+async def openrouter_stream(prompt: str, role: str, llm_settings: dict):
+    
 
-    # ✅ OpenRouter REQUIRED
-    "HTTP-Referer": "http://localhost:5173",
-    "X-Title": "Student Dashboard",
-}
+    api_key = llm_settings.get("api_key")
+    model = llm_settings.get("model_name", "openai/gpt-4o-mini")
+    temperature = llm_settings.get("temperature", 0.4)
+    max_tokens = llm_settings.get("max_tokens", 457)
 
-async def openrouter_stream(prompt: str, role: str):
+    if not api_key:
+        yield "❌ API key is missing"
+        return
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+
+        # ✅ OpenRouter REQUIRED
+        "HTTP-Referer": "http://localhost:5173",
+        "X-Title": "Student Dashboard",
+    }
+
     payload = {
-        "model": "openai/gpt-4o-mini",
+        "model": model,
         "stream": True,
-        "temperature": 0.4,
-        "max_tokens": 4096,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
         "messages": [
             {
                 "role": "system",
@@ -44,11 +47,11 @@ async def openrouter_stream(prompt: str, role: str):
         async with client.stream(
             "POST",
             URL,
-            headers=HEADERS,
+            headers=headers,
             json=payload
         ) as response:
 
-            # 🔴 IMPORTANT: non-200 response
+            # 🔴 non-200 response
             if response.status_code != 200:
                 raw = await response.aread()
                 yield (
@@ -58,11 +61,7 @@ async def openrouter_stream(prompt: str, role: str):
                 return
 
             async for line in response.aiter_lines():
-                if not line:
-                    continue
-
-                if not line.startswith("data:"):
-                    
+                if not line or not line.startswith("data:"):
                     continue
 
                 data = line.replace("data:", "").strip()
@@ -73,7 +72,7 @@ async def openrouter_stream(prompt: str, role: str):
                 try:
                     chunk = json.loads(data)
 
-                    # 🔴 REAL OpenRouter error object
+                    # 🔴 OpenRouter structured error
                     if "error" in chunk:
                         yield (
                             "\n❌ OpenRouter Error:\n"
@@ -81,7 +80,6 @@ async def openrouter_stream(prompt: str, role: str):
                         )
                         return
 
-                    # ✅ normal streaming token
                     choice = chunk.get("choices", [{}])[0]
                     delta = choice.get("delta", {})
 
