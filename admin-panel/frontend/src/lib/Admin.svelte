@@ -3,11 +3,13 @@
     import { api } from './api.js';
     import { authStore } from '../stores/auth.js';
     import UserManagement from './UserManagement.svelte';
+    import LLMSettings from './LLMSettings.svelte';
 
     export let onLogout = () => {};
 
     let user = null;
     let loading = true;
+    let activeTab = 'users'; // 'users' or 'llm-settings'
 
     console.log('🔵 Admin.svelte script executed');
 
@@ -22,6 +24,10 @@
             onLogout();
         }
     });
+
+    function switchTab(tab) {
+        activeTab = tab;
+    }
 </script>
 
 {#if loading}
@@ -36,9 +42,32 @@
             </div>
         </header>
 
-        {#key user}
-            <UserManagement />
-        {/key}
+        <div class="tabs-container">
+            <button 
+                class="tab-btn" 
+                class:active={activeTab === 'users'}
+                on:click={() => switchTab('users')}
+            >
+                👥 مدیریت کاربران
+            </button>
+            <button 
+                class="tab-btn" 
+                class:active={activeTab === 'llm-settings'}
+                on:click={() => switchTab('llm-settings')}
+            >
+                ⚙️ تنظیمات LLM
+            </button>
+        </div>
+
+        <div class="tab-content">
+            {#if activeTab === 'users'}
+                {#key user}
+                    <UserManagement />
+                {/key}
+            {:else if activeTab === 'llm-settings'}
+                <LLMSettings />
+            {/if}
+        </div>
     </div>
 {/if}
 
@@ -96,5 +125,43 @@
     .logout-btn:hover {
         background: white;
         color: #667eea;
+    }
+
+    .tabs-container {
+        background: white;
+        padding: 0 2rem;
+        display: flex;
+        gap: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .tab-btn {
+        background: none;
+        border: none;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.3s;
+        border-bottom: 3px solid transparent;
+        font-family: inherit;
+        position: relative;
+        top: 2px;
+    }
+
+    .tab-btn:hover {
+        color: #667eea;
+        background: #f9fafb;
+    }
+
+    .tab-btn.active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+    }
+
+    .tab-content {
+        padding: 0 1rem;
     }
 </style>
