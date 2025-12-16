@@ -10,7 +10,7 @@ async def openrouter_stream(prompt: str, role: str, llm_settings: dict):
     api_key = llm_settings.get("api_key")
     model = llm_settings.get("model_name", "openai/gpt-4o-mini")
     temperature = llm_settings.get("temperature", 0.4)
-    max_tokens = llm_settings.get("max_tokens", 457)
+    max_tokens = llm_settings.get("max_tokens", 4096)
 
     if not api_key:
         yield "❌ API key is missing"
