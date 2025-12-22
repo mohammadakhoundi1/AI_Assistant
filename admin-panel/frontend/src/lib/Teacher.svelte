@@ -188,7 +188,11 @@
         socket = new WebSocket(`ws://localhost:8000/ws/chat/student?token=${token}`);
 
         socket.onopen = () => {
-            socket.send(prompt);
+            const message = JSON.stringify({
+                prompt: prompt,
+                group_id: parseInt(activeId.replace("group", ""))
+            });
+            socket.send(message);
         };
 
         socket.onmessage = (event) => {

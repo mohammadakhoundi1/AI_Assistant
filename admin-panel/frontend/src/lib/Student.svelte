@@ -132,16 +132,10 @@
 - در صورت اشتباه، او را با سوالات هدایت کنید
 - تشویق کنید که روش‌های مختلف را امتحان کند`,
 
-        group7: `شما یک روان‌شناس و مشاور حمایت‌کننده هستید که با همدلی و درک به دانش‌آموز گوش می‌دهید.
+        group7: `جواب را به صورت یکپارچه بیان کن 
 
 پیام دانش‌آموز: {emotionalMessage}
-
-رویکرد شما:
-- با همدلی و بدون قضاوت گوش دهید
-- احساسات دانش‌آموز را تایید کنید
-- کمک کنید تا احساسات خود را بهتر درک کند
-- راهکارهای سازنده پیشنهاد دهید
-- به او یادآوری کنید که تنها نیست`
+`
     };
 
     /* ================== FUNCTIONS ================== */
@@ -188,8 +182,13 @@
         socket = new WebSocket(`ws://localhost:8000/ws/chat/student?token=${token}`);
 
         socket.onopen = () => {
-            socket.send(prompt);
+            const message = JSON.stringify({
+                prompt: prompt,
+                group_id: parseInt(activeId.replace("group", ""))
+            });
+            socket.send(message);
         };
+
 
         socket.onmessage = (event) => {
             try {
@@ -307,14 +306,14 @@
                 <!-- Input برای حمایت عاطفی -->
                 <div class="emotional-input-container">
                     <div class="fancy-textarea">
-                        <span class="input-icon">💭</span>
+                       
                         <textarea 
                             bind:value={emotionalMessage}
                             placeholder="چه اتفاقی افتاده؟ با من در میان بگذار..."
                             disabled={loading}
                             rows="6"
                         ></textarea>
-                        <label class="fancy-label">پیام شما</label>
+                        
                     </div>
                 </div>
             {:else}

@@ -70,7 +70,7 @@ export const api = {
 
     getAdminStats: () => apiRequest('/admin/stats'),
 
-    // ✨ LLM Settings Methods (NEW)
+    // ✨ LLM Settings Methods
     getLLMSettings: () => apiRequest('/admin/llm-settings', {
         method: 'GET',
     }),
@@ -86,5 +86,60 @@ export const api = {
             base_url: baseUrl,
             api_key: apiKey,
         }),
+    }),
+
+    // ============= 📚 RAG API Methods (NEW) =============
+
+    /**
+     * آپلود سند به سیستم RAG
+     * @param {number} groupId - شماره گروه (1-8)
+     * @param {File} file - فایل PDF, DOCX یا TXT
+     */
+    uploadRAGDocument: async (groupId, file) => {
+        const token = localStorage.getItem('token');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const url = `${API_URL}/admin/rag/upload/${groupId}`;
+        console.log('📤 Uploading file to:', url);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                    // Note: Don't set Content-Type for FormData, browser will set it automatically with boundary
+                },
+                body: formData
+            });
+
+            console.log('Upload response status:', response.status);
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.detail || `خطا در آپلود: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Upload failed:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * دریافت لیست اسناد یک گروه
+     * @param {number} groupId - شماره گروه (1-8)
+     */
+    getRAGDocuments: (groupId) => apiRequest(`/admin/rag/documents/${groupId}`, {
+        method: 'GET',
+    }),
+
+    /**
+     * حذف یک سند از سیستم RAG
+     * @param {number} documentId - شناسه سند
+     */
+    deleteRAGDocument: (documentId) => apiRequest(`/admin/rag/documents/${documentId}`, {
+        method: 'DELETE',
     }),
 };

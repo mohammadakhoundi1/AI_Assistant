@@ -4,12 +4,13 @@
     import { authStore } from '../stores/auth.js';
     import UserManagement from './UserManagement.svelte';
     import LLMSettings from './LLMSettings.svelte';
+    import RAGManagement from './RAGManagement.svelte';
 
     export let onLogout = () => {};
 
     let user = null;
     let loading = true;
-    let activeTab = 'users'; // 'users' or 'llm-settings'
+    let activeTab = 'users'; // 'users', 'llm-settings', or 'rag'
 
     console.log('🔵 Admin.svelte script executed');
 
@@ -57,6 +58,13 @@
             >
                 ⚙️ تنظیمات LLM
             </button>
+            <button 
+                class="tab-btn" 
+                class:active={activeTab === 'rag'}
+                on:click={() => switchTab('rag')}
+            >
+                📚 مدیریت RAG
+            </button>
         </div>
 
         <div class="tab-content">
@@ -66,6 +74,8 @@
                 {/key}
             {:else if activeTab === 'llm-settings'}
                 <LLMSettings />
+            {:else if activeTab === 'rag'}
+                <RAGManagement />
             {/if}
         </div>
     </div>
