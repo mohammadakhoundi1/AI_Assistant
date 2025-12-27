@@ -95,6 +95,7 @@ async def chat_websocket(
             {prompt}"""
             final_prompt = system_instruction
             print('📝 RAG Context added to prompt')
+            print('final prompt',final_prompt)
 
         # ----------- CALL LLM STREAM -----------------------
         sent_anything = False
