@@ -3,17 +3,10 @@
     import { api } from './api.js';
 
     let groups = [
-        { id: 1, name: 'گروه 1' },
-        { id: 2, name: 'گروه 2' },
-        { id: 3, name: 'گروه 3' },
-        { id: 4, name: 'گروه 4' },
-        { id: 5, name: 'گروه 5' },
-        { id: 6, name: 'گروه 6' },
-        { id: 7, name: 'گروه 7' },
-        { id: 8, name: 'گروه 8' }
+        { id: 7, name: 'گروه 7' },   
     ];
 
-    let selectedGroupId = 1;
+    let selectedGroupId = 7;
     let documents = [];
     let loading = false;
     let uploadFile = null;
