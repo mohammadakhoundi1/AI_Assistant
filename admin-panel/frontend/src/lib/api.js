@@ -142,4 +142,19 @@ export const api = {
     deleteRAGDocument: (documentId) => apiRequest(`/admin/rag/documents/${documentId}`, {
         method: 'DELETE',
     }),
+
+    // ۱. تابع دریافت تنظیمات (Top K)
+    getRagSettings: async (groupId) => {
+        return await apiRequest(`/admin/rag/settings/${groupId}`, {
+            method: 'GET'
+        });
+    },
+
+    // ۲. تابع ذخیره/به‌روزرسانی تنظیمات (Top K)
+    updateRagSettings: async (groupId, topK) => {
+        return await apiRequest(`/admin/rag/settings/${groupId}`, {
+            method: 'POST', // دقت کنید که متد POST است
+            body: JSON.stringify({ top_k: topK })
+        });
+    },
 };

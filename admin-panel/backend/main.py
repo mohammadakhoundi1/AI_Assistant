@@ -19,7 +19,8 @@ from schemas import (
     LLMSettingsUpdate,
     ModelsFetchRequest,
     ModelInfo,
-    ModelsListResponse
+    ModelsListResponse,
+    RAGSettingsUpdate
 )
 import httpx
 import os
@@ -168,7 +169,7 @@ async def ws_chat(websocket: WebSocket, role: str, db: Session = Depends(get_db)
         print(f"   Using default/empty settings\n")
     
     # ✅ ارسال RAG Systems به WebSocket
-    await chat_websocket(websocket, role, llm_settings, rag_systems)
+    await chat_websocket(websocket, role, llm_settings, rag_systems, db)
 
 @app.post("/auth/signup", response_model=UserResponse)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
@@ -431,7 +432,7 @@ async def fetch_available_models(
             response = await client.get(
                 f"{request.base_url}/models",
                 headers={"Authorization": f"Bearer {request.api_key}"},
-                timeout=10.0
+                timeout=8.0
             )
             response.raise_for_status()
             data = response.json()
@@ -596,6 +597,59 @@ async def delete_rag_document(
         "message": "سند با موفقیت حذف شد",
         "document_id": document_id
     }
+
+
+# Make sure to import your new schema
+# from schemas import RAGSettingsUpdate 
+
+@app.get("/admin/rag/settings/{group_id}")
+async def get_rag_settings(
+    group_id: int,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """دریافت تنظیمات RAG (Top K) برای یک گروه"""
+    try:
+        # Fetch the first document in the group to get the current top_k
+        document = db.query(RAGDocument).filter(RAGDocument.group_id == group_id).first()
+        
+        # If a document exists, return its top_k. Otherwise, return the default 3.
+        current_top_k = document.top_k if document else 3
+        
+        return {"group_id": group_id, "top_k": current_top_k}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/rag/settings/{group_id}")
+async def update_rag_settings(
+    group_id: int,
+    settings: RAGSettingsUpdate,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """آپدیت تنظیمات RAG (Top K) برای تمام فایل‌های یک گروه"""
+    try:
+        # Update the top_k value for ALL documents in this group
+        updated_rows = db.query(RAGDocument).filter(
+            RAGDocument.group_id == group_id
+        ).update({"top_k": settings.top_k})
+        
+        db.commit()
+        
+        print(f"✅ RAG Settings updated for Group {group_id}: Top K set to {settings.top_k}. ({updated_rows} documents updated)")
+        
+        return {
+            "message": "تنظیمات با موفقیت بروزرسانی شد",
+            "group_id": group_id,
+            "top_k": settings.top_k,
+            "documents_updated": updated_rows
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

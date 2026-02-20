@@ -51,7 +51,7 @@ class RAGSystem:
         self.openai_client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
-            timeout=0.4,
+            timeout=3.0,
             max_retries=3,
         )
 

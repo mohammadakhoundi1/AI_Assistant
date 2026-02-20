@@ -66,3 +66,7 @@ class ModelsListResponse(BaseModel):
     models: list[ModelInfo]
     
     model_config = ConfigDict(protected_namespaces=())
+
+
+class RAGSettingsUpdate(BaseModel):
+    top_k: int

@@ -35,5 +35,6 @@ class RAGDocument(Base):
     file_type = Column(String, nullable=False)  # pdf, txt, docx
     content = Column(Text, nullable=True)  # محتوای استخراج شده (اختیاری)
     chunk_count = Column(Integer, default=0)  # تعداد chunk های ایجاد شده
+    top_k = Column(Integer, default=3, nullable=False) #تعداد محتوای استخراج شده 
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -13,9 +13,57 @@
     let uploadStatus = '';
     let fileInputElement;
 
+    // متغیرهای مربوط به تنظیمات Top K
+    let topK = 3; 
+    let settingsStatus = '';
+    let settingsTimeout;
+    let isSavingSettings = false; // متغیر جدید برای جلوگیری از کلیک همزمان
+
     onMount(() => {
         loadDocuments();
+        loadSettings(); // بارگذاری تنظیمات در هنگام لود صفحه
     });
+
+    // تابع جدید برای دریافت تنظیمات از سرور
+    async function loadSettings() {
+        try {
+            const data = await api.getRagSettings(selectedGroupId);
+            if (data && data.top_k !== undefined) {
+                topK = data.top_k;
+            } else {
+                topK = 3; // مقدار پیش‌فرض در صورتی که دیتایی نباشد
+            }
+        } catch (error) {
+            console.error('❌ خطا در دریافت تنظیمات:', error);
+            topK = 3; // تنظیم روی مقدار پیش‌فرض در صورت خطا
+        }
+    }
+
+    // تابع ذخیره تنظیمات تغییر یافته به async
+    async function saveSettings() {
+        isSavingSettings = true;
+        settingsStatus = '⏳ در حال ذخیره...';
+        
+        try {
+            // فراخوانی API برای ذخیره تنظیمات
+            await api.updateRagSettings(selectedGroupId, topK);
+            
+            console.log('💾 تنظیمات جستجو ذخیره شد. مقدار K:', topK);
+            settingsStatus = '✅ تنظیمات با موفقیت ذخیره شد!';
+            
+        } catch (error) {
+            console.error('❌ خطا در ذخیره تنظیمات:', error);
+            settingsStatus = '❌ خطا در ذخیره تنظیمات.';
+        } finally {
+            isSavingSettings = false;
+            
+            // پاک کردن پیام بعد از 3 ثانیه
+            clearTimeout(settingsTimeout);
+            settingsTimeout = setTimeout(() => {
+                settingsStatus = '';
+            }, 3000);
+        }
+    }
 
     async function loadDocuments() {
         loading = true;
@@ -23,20 +71,14 @@
         try {
             const response = await api.getRAGDocuments(selectedGroupId);
             console.log('📦 Raw response:', response);
-            console.log('📦 Response type:', typeof response);
-            console.log('📦 Is Array?', Array.isArray(response));
             
-            // ✅ اگر response یک object است که documents دارد:
             if (response && response.documents && Array.isArray(response.documents)) {
                 documents = response.documents;
             } 
-            // ✅ اگر response خودش یک array است:
             else if (Array.isArray(response)) {
                 documents = response;
             }
-            // ⚠️ اگر response یک object است ولی key دیگری دارد:
             else if (response && typeof response === 'object') {
-                // شاید key دیگری دارد؟
                 const firstKey = Object.keys(response)[0];
                 if (Array.isArray(response[firstKey])) {
                     documents = response[firstKey];
@@ -45,13 +87,10 @@
                     documents = [];
                 }
             }
-            // ❌ اگر هیچکدام نبود:
             else {
                 console.error('❌ Unexpected response format:', response);
                 documents = [];
             }
-            
-            console.log('✅ اسناد بارگذاری شد:', documents);
         } catch (error) {
             console.error('❌ خطا در بارگذاری اسناد:', error);
             uploadStatus = '❌ خطا در بارگذاری لیست اسناد: ' + error.message;
@@ -62,13 +101,8 @@
     }
 
     async function handleUpload() {
-        console.log('🔵 handleUpload called');
-        console.log('📁 uploadFile:', uploadFile);
-        console.log('🎯 selectedGroupId:', selectedGroupId);
-
         if (!uploadFile) {
             uploadStatus = '⚠️ لطفاً یک فایل انتخاب کنید';
-            console.warn('⚠️ فایلی انتخاب نشده');
             return;
         }
 
@@ -77,20 +111,14 @@
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
             'text/plain'
         ];
-        
-        console.log('📋 File type:', uploadFile.type);
-        console.log('📋 File name:', uploadFile.name);
-        console.log('📋 File size:', uploadFile.size);
 
         if (!allowedTypes.includes(uploadFile.type)) {
             uploadStatus = '❌ فقط فایل‌های PDF، DOCX و TXT مجاز هستند';
-            console.error('❌ نوع فایل نامعتبر:', uploadFile.type);
             return;
         }
 
         if (uploadFile.size > 10 * 1024 * 1024) {
             uploadStatus = '❌ حجم فایل نباید بیشتر از 10 مگابایت باشد';
-            console.error('❌ فایل خیلی بزرگ است:', uploadFile.size);
             return;
         }
 
@@ -98,10 +126,8 @@
         uploadStatus = '📤 در حال آپلود...';
 
         try {
-            console.log('📤 شروع آپلود به گروه:', selectedGroupId);
-            const response = await api.uploadRAGDocument(selectedGroupId, uploadFile);
-            console.log('✅ پاسخ سرور:', response);
-            
+            // آپلود فایل فقط با groupId و uploadFile (بدون نیاز به ارسال topK)
+            await api.uploadRAGDocument(selectedGroupId, uploadFile);
             uploadStatus = '✅ فایل با موفقیت آپلود شد';
             uploadFile = null;
             
@@ -130,7 +156,6 @@
         uploadStatus = '🗑️ در حال حذف...';
         
         try {
-            console.log('🗑️ حذف سند با ID:', docId);
             await api.deleteRAGDocument(docId);
             uploadStatus = '✅ سند با موفقیت حذف شد';
             await loadDocuments();
@@ -144,27 +169,25 @@
 
     function handleFileChange(event) {
         const file = event.target.files[0];
-        console.log('📂 فایل انتخاب شد:', file);
-        
         if (file) {
             uploadFile = file;
             uploadStatus = `✅ فایل "${file.name}" آماده آپلود است`;
-            console.log('✅ uploadFile به‌روزرسانی شد:', uploadFile);
         } else {
             uploadFile = null;
             uploadStatus = '';
-            console.log('⚠️ هیچ فایلی انتخاب نشد');
         }
     }
 
     function handleGroupChange() {
-        console.log('🔄 گروه تغییر کرد به:', selectedGroupId);
         uploadStatus = '';
         uploadFile = null;
+        settingsStatus = ''; // پاک کردن پیام‌های قبلی تنظیمات
         if (fileInputElement) {
             fileInputElement.value = '';
         }
+        
         loadDocuments();
+        loadSettings(); // آپدیت تنظیمات K بر اساس گروه جدید
     }
 
     function formatFileSize(bytes) {
@@ -184,7 +207,6 @@
     }
 </script>
 
-<!-- بقیه HTML مثل قبل -->
 <div class="rag-container">
     <div class="section-header">
         <h2>📚 مدیریت اسناد RAG</h2>
@@ -198,6 +220,48 @@
                 <option value={group.id}>{group.name}</option>
             {/each}
         </select>
+    </div>
+
+    <!-- بخش تنظیمات K -->
+    <div class="settings-section">
+        <div class="settings-header">
+            <h3>⚙️ تنظیمات جستجو (Top K)</h3>
+            <span class="badge">K = {topK}</span>
+        </div>
+        
+        <div class="slider-container">
+            <label for="topK-slider">تعداد تکه‌های متنی که برای پاسخ به هوش مصنوعی ارسال می‌شود:</label>
+            <div class="slider-wrapper">
+                <span class="slider-limit">1</span>
+                <input 
+                    id="topK-slider" 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    step="1" 
+                    bind:value={topK} 
+                    class="k-slider"
+                    disabled={isSavingSettings}
+                />
+                <span class="slider-limit">10</span>
+            </div>
+            <p class="hint-text">
+                * عدد بالاتر دقت جستجو را افزایش می‌دهد، اما مصرف توکن را بالا برده و سرعت پاسخگویی را کمی کاهش می‌دهد.
+            </p>
+        </div>
+
+        <div class="settings-actions">
+            <button 
+                class="btn-save" 
+                on:click={saveSettings}
+                disabled={isSavingSettings}
+            >
+                {isSavingSettings ? '⏳ در حال ذخیره...' : '💾 ذخیره تنظیمات'}
+            </button>
+            {#if settingsStatus}
+                <span class="settings-success-msg" class:error-msg={settingsStatus.includes('❌')}>{settingsStatus}</span>
+            {/if}
+        </div>
     </div>
 
     <div class="upload-section">
@@ -227,12 +291,6 @@
         <div class="upload-hint">
             💡 فرمت‌های مجاز: PDF, DOCX, TXT (حداکثر 10 MB)
         </div>
-        
-        {#if uploadFile}
-            <div class="debug-info">
-                🐛 فایل انتخاب شده: {uploadFile.name} ({formatFileSize(uploadFile.size)})
-            </div>
-        {/if}
     </div>
 
     <div class="documents-section">
@@ -296,11 +354,12 @@
 </div>
 
 <style>
-    /* همان استایل‌های قبلی */
+    /* استایل‌های پایه */
     .rag-container {
         max-width: 1200px;
         margin: 2rem auto;
         padding: 0 1rem;
+        direction: rtl; 
     }
 
     .section-header {
@@ -355,6 +414,149 @@
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
+    /* استایل‌های بخش Top K */
+    .settings-section {
+        background: white;
+        padding: 1.5rem 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .settings-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    .settings-header h3 {
+        margin: 0;
+        color: #374151;
+        font-size: 1.25rem;
+    }
+
+    .badge {
+        background-color: #e0e7ff;
+        color: #3730a3;
+        font-weight: 600;
+        padding: 0.25rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.9rem;
+    }
+
+    .slider-container label {
+        display: block;
+        margin-bottom: 1rem;
+        color: #4b5563;
+        font-size: 0.95rem;
+    }
+
+    .slider-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .slider-limit {
+        font-weight: bold;
+        color: #9ca3af;
+        min-width: 20px;
+        text-align: center;
+    }
+
+    .k-slider {
+        flex: 1;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 8px;
+        appearance: none;
+        outline: none;
+        cursor: pointer;
+    }
+    
+    .k-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #667eea;
+        cursor: pointer;
+        transition: background 0.15s ease-in-out;
+    }
+    
+    .k-slider::-webkit-slider-thumb:hover {
+        background: #764ba2;
+    }
+    
+    .k-slider:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .k-slider:disabled::-webkit-slider-thumb {
+        cursor: not-allowed;
+        background: #9ca3af;
+    }
+
+    .hint-text {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        margin: 0.5rem 0 0 0;
+    }
+
+    /* استایل‌های مربوط به دکمه ذخیره تنظیمات */
+    .settings-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .btn-save {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-save:hover:not(:disabled) {
+        background: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-save:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    .settings-success-msg {
+        color: #059669;
+        font-size: 0.95rem;
+        font-weight: 500;
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    .error-msg {
+        color: #dc2626;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* آپلود فرم */
     .upload-section {
         background: white;
         padding: 2rem;
@@ -443,16 +645,7 @@
         font-size: 0.9rem;
     }
 
-    .debug-info {
-        background: #fef3c7;
-        border: 1px solid #fbbf24;
-        color: #92400e;
-        padding: 0.75rem;
-        border-radius: 6px;
-        margin-top: 1rem;
-        font-size: 0.9rem;
-    }
-
+    /* جدول اسناد */
     .documents-section {
         background: white;
         padding: 2rem;
@@ -465,16 +658,10 @@
         color: #374151;
     }
 
-    .loading-spinner {
+    .loading-spinner, .empty-state {
         text-align: center;
         padding: 3rem;
         font-size: 1.2rem;
-        color: #6b7280;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
         color: #6b7280;
     }
 

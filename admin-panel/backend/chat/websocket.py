@@ -1,13 +1,18 @@
+from requests import Session
 from fastapi import WebSocket, WebSocketDisconnect
 from chat.openrouter import openrouter_stream
+from models import RAGDocument
 from typing import Dict
 import json
+from sqlalchemy.orm import Session
 
 async def chat_websocket(
     websocket: WebSocket, 
     role: str,
     llm_settings: dict,
-    rag_systems: Dict[int, 'RAGSystem'] = None
+    rag_systems: Dict,
+    db: Session
+    
 ):
     """
     WebSocket Handler with RAG support (only for Group 7)
@@ -44,10 +49,19 @@ async def chat_websocket(
         rag_context = None
         if rag_systems and group_id == 7 and group_id in rag_systems:
             try:
+
+                # ۱. ابتدا باید تنظیمات این گروه را از دیتابیس بخوانید
+                # فرض بر این است که متغیر session دیتابیس شما db نام دارد
+                rag_setting = db.query(RAGDocument).filter(RAGDocument.group_id == group_id).first()
+
+
+                # ۲. مقدار top_k را مشخص کنید
+                # اگر تنظیمی در دیتابیس وجود داشت، همان را استفاده کن، در غیر این صورت روی 3 تنظیم کن
+                dynamic_top_k = rag_setting.top_k if rag_setting and rag_setting.top_k else 3
                 print(f'🔍 RAG Enabled for Group {group_id} - Searching...')
                 relevant_chunks = rag_systems[group_id].search(
                     query=prompt,
-                    # top_k=1
+                     top_k=dynamic_top_k
                 )
                 if relevant_chunks:
                     rag_context = "\n\n---\n\n".join(relevant_chunks)
