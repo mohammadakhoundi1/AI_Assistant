@@ -6,6 +6,7 @@ from chromadb.config import Settings
 from openai import OpenAI
 import PyPDF2
 import docx
+import time
 
 
 class RAGSystem:
@@ -18,7 +19,7 @@ class RAGSystem:
         group_id: int,
         api_key: str,
         base_url: Optional[str] = "https://openrouter.ai/api/v1",
-        embedding_model: str = "text-embedding-3-large",
+        embedding_model: str = "openai/text-embedding-3-small",
     ):
         self.group_id = group_id
         self.api_key = api_key
@@ -50,7 +51,7 @@ class RAGSystem:
         self.openai_client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
-            timeout=30.0,
+            timeout=0.4,
             max_retries=3,
         )
 
@@ -95,7 +96,7 @@ class RAGSystem:
 
     # ------------------- Text Chunking --------------------
 
-    def _chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
+    def _chunk_text(self, text: str, chunk_size: int = 350, overlap: int = 50) -> List[str]:
         chunks = []
         start = 0
         text_length = len(text)
@@ -194,23 +195,79 @@ class RAGSystem:
             print(f"❌ Error deleting document embeddings: {e}")
 
     def search(self, query: str, top_k: int = 3) -> List[str]:
+        
+
+        print("🟢🟢🟢 NEW DEBUG VERSION RUNNING 🟢🟢🟢")
+        print(f"\n🔍 === SEARCH DEBUG START ===")
+
+        # Step 1: Check collection
+        t0 = time.time()
+        count = self.collection.count()
+        t1 = time.time()
+        print(f"⏱️ Step 1 - Collection count ({count} chunks): {(t1-t0)*1000:.1f}ms")
+
+        if count == 0:
+            print("⚠️ Collection is EMPTY!")
+            return []
+
+        # Step 2: Get embedding
         try:
+            t2 = time.time()
             query_embedding = self._get_embedding(query)
+            t3 = time.time()
+            print(f"⏱️ Step 2 - _get_embedding(): {(t3-t2)*1000:.1f}ms")
+        except Exception as e:
+            print(f"❌ Step 2 CRASHED: {e}")
+            return []
+
+        if query_embedding is None:
+            print("❌ Embedding returned None!")
+            return []
+
+        print(f"   Embedding length: {len(query_embedding)}")
+
+        # Step 3: ChromaDB query
+        try:
+            t4 = time.time()
             results = self.collection.query(
                 query_embeddings=[query_embedding],
-                n_results=top_k,
+                n_results=min(top_k, count),
                 include=["documents", "metadatas", "distances"],
             )
-
-            if results and results["documents"]:
-                docs = results["documents"][0]
-                metas = results["metadatas"][0]
-                combined = [f"{meta['filename']} ➜ {doc[:300]}..." for doc, meta in zip(docs, metas)]
-                return combined
-            return []
+            t5 = time.time()
+            print(f"⏱️ Step 3 - ChromaDB query: {(t5-t4)*1000:.1f}ms")
         except Exception as e:
-            print(f"❌ Error searching: {e}")
+            print(f"❌ Step 3 CRASHED: {e}")
             return []
+
+        # Step 4: Process results
+        t6 = time.time()
+        if results and results.get("documents") and results["documents"][0]:
+            docs = results["documents"][0]
+            metas = results["metadatas"][0] if results.get("metadatas") else [{}] * len(docs)
+            distances = results["distances"][0] if results.get("distances") else [None] * len(docs)
+
+            combined = []
+            for doc, meta, dist in zip(docs, metas, distances):
+                filename = meta.get("filename", "unknown") if meta else "unknown"
+                similarity = f"{1 - dist:.2f}" if dist is not None else "N/A"
+                preview = doc[:200] + ("..." if len(doc) > 200 else "")
+                combined.append(f"[{filename} | sim: {similarity}] {preview}")
+                print(f"   ✅ Found: {filename} (similarity: {similarity})")
+
+            t7 = time.time()
+            print(f"⏱️ Step 4 - Process results: {(t7-t6)*1000:.1f}ms")
+            print(f"⏱️ TOTAL SEARCH TIME: {(t7-t0)*1000:.1f}ms")
+            print(f"🔍 === SEARCH DEBUG END ===\n")
+            return combined
+
+        print("⚠️ No results returned")
+        print(f"🔍 === SEARCH DEBUG END ===\n")
+        return []
+
+    
+    
+
 
     def load_existing(self) -> bool:
         try:

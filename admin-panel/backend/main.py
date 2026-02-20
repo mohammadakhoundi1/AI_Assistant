@@ -503,7 +503,7 @@ async def upload_rag_document(
                 group_id=group_id,
                 api_key=llm_settings.api_key,
                 base_url=llm_settings.base_url,
-                embedding_model="text-embedding-3-small",
+                embedding_model="openai/text-embedding-3-small",
             )
         
         rag_system = rag_systems[group_id]

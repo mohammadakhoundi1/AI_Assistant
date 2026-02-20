@@ -47,7 +47,7 @@ async def chat_websocket(
                 print(f'🔍 RAG Enabled for Group {group_id} - Searching...')
                 relevant_chunks = rag_systems[group_id].search(
                     query=prompt,
-                    top_k=3
+                    top_k=1
                 )
                 if relevant_chunks:
                     rag_context = "\n\n---\n\n".join(relevant_chunks)
@@ -84,10 +84,10 @@ async def chat_websocket(
             ---
 
             🎯 **دستورالعمل‌ها:**
-            - فقط از اطلاعات موجود در اسناد بالا استفاده کنید
+            -  از اطلاعات موجود در اسناد بالا استفاده کنید
             - اگر پاسخ در اسناد نیست، صریحاً بگویید که "این اطلاعات در اسناد موجود نیست"
             - پاسخ را به زبان فارسی و کامل بدهید
-            - در صورت امکان، منبع اطلاعات را ذکر کنید
+           
 
             ---
 
