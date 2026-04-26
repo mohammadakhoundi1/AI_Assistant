@@ -18,8 +18,8 @@ class RAGSystem:
         self,
         group_id: int,
         api_key: str,
-        base_url: Optional[str] = "https://openrouter.ai/api/v1",
-        embedding_model: str = "openai/text-embedding-3-small",
+        base_url: Optional[str] = "https://api.gapgpt.app/v1",
+        embedding_model: str = "text-embedding-3-small",
     ):
         self.group_id = group_id
         self.api_key = api_key
@@ -110,7 +110,7 @@ class RAGSystem:
 
     # ------------------- Embedding Operations --------------------
 
-    def _get_embeddings_batch(self, texts: List[str], batch_size: int = 350) -> List[List[float]]:
+    def _get_embeddings_batch(self, texts: List[str], batch_size: int = 50) -> List[List[float]]:
         embeddings = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]

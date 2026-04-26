@@ -88,7 +88,7 @@ export const api = {
         }),
     }),
 
-    // ============= 📚 RAG API Methods (NEW) =============
+    // ============= 📚 RAG API Methods =============
 
     /**
      * آپلود سند به سیستم RAG
@@ -143,18 +143,28 @@ export const api = {
         method: 'DELETE',
     }),
 
-    // ۱. تابع دریافت تنظیمات (Top K)
-    getRagSettings: async (groupId) => {
-        return await apiRequest(`/admin/rag/settings/${groupId}`, {
-            method: 'GET'
-        });
-    },
+    /**
+     * دریافت تنظیمات RAG (Top K و مدل Embedding)
+     * @param {number} groupId - شماره گروه (1-8)
+     */
+    getRagSettings: (groupId) => apiRequest(`/admin/rag/settings/${groupId}`, {
+        method: 'GET',
+    }),
 
-    // ۲. تابع ذخیره/به‌روزرسانی تنظیمات (Top K)
-    updateRagSettings: async (groupId, topK) => {
-        return await apiRequest(`/admin/rag/settings/${groupId}`, {
-            method: 'POST', // دقت کنید که متد POST است
-            body: JSON.stringify({ top_k: topK })
-        });
-    },
+    /**
+     * به‌روزرسانی تنظیمات RAG (Top K و مدل Embedding)
+     * @param {number} groupId - شماره گروه (1-8)
+     * @param {Object} settings - تنظیمات {top_k, embedding_model}
+     */
+    updateRagSettings: (groupId, settings) => apiRequest(`/admin/rag/settings/${groupId}`, {
+        method: 'POST',
+        body: JSON.stringify(settings),
+    }),
+
+    /**
+     * دریافت لیست مدل‌های Embedding موجود
+     */
+    getEmbeddingModels: () => apiRequest('/admin/rag/embedding-models', {
+        method: 'GET',
+    }),
 };
